@@ -1,0 +1,21 @@
+{
+  "name": "google-news-cli",
+  "version": "1.0.0",
+  "description": "A command line interface to browse and search Google News.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "google-news": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "open": "^10.1.0",
+    "ora": "^8.0.1",
+    "picocolors": "^1.0.0",
+    "prompts": "^2.4.2",
+    "rss-parser": "^3.13.0"
+  }
+}
