@@ -14,15 +14,22 @@
 
 import contextlib
 import os
+import base64
+import json
+import logging
 from collections.abc import AsyncIterator
 
 import google.auth
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.cloud import logging as google_cloud_logging
+
+# Configure standard console logging
+logging.basicConfig(level=logging.INFO)
+
 
 from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
@@ -87,12 +94,50 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     Returns:
         Success message
     """
-    logger.log_struct(feedback.model_dump(), severity="INFO")
+    logging.info(f"Feedback received: {feedback.model_dump()}")
     return {"status": "success"}
 
+
+@app.post("/pubsub")
+async def pubsub_handler(request: Request) -> dict:
+    """Handle Pub/Sub push messages, normalize subscription name, and invoke the ADK runner.
+
+    Expected Pub/Sub push request payload:
+    {
+        "message": {
+            "data": "<base64-encoded JSON>",
+            "subscription": "projects/.../subscriptions/<name>"
+        }
+    }
+    """
+    payload = await request.json()
+    message = payload.get("message", {})
+    data_b64 = message.get("data")
+    subscription = message.get("subscription", "")
+    sub_name = subscription.split('/')[-1] if subscription else "unknown"
+
+    if not data_b64:
+        logging.warning("Pub/Sub message missing data payload")
+        return {"status": "error", "reason": "no data"}
+    try:
+        data_bytes = base64.b64decode(data_b64)
+        event_payload = json.loads(data_bytes.decode())
+    except Exception as e:
+        logging.exception("Failed to decode Pub/Sub payload")
+        return {"status": "error", "reason": str(e)}
+
+    # Run the agent using the ADK runner attached to app state
+    runner: Runner = app.state.runner
+    try:
+        result = await runner.run_async(event_payload)
+        logging.info(f"Processed Pub/Sub event from {sub_name}")
+        return {"status": "processed", "subscription": sub_name, "result": result}
+    except Exception as e:
+        logging.exception("Runner execution failed for Pub/Sub event")
+        return {"status": "error", "reason": str(e)}
 
 # Main execution
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
