@@ -24,10 +24,22 @@ from google.genai import types
 import os
 import google.auth
 
-_, project_id = google.auth.default()
+
+# Safe environment configuration – avoid google.auth.default which can raise RefreshError when the default account is deleted.
+
+# Load project ID from .env (or fallback to a placeholder)
+project_id = os.getenv("GOOGLE_CLOUD_PROJECT", "my-gcp-project-id")
 os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
+# Location is required for Vertex AI; keep "global" for local testing.
 os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
-os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+# Use Vertex AI only when a valid GCP project and credentials are present.
+# For local AI Studio API‑key usage, disable Vertex AI integration.
+if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+else:
+    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "False"
+
+# Removed duplicate env setup – handled earlier with fallback logic
 
 
 def get_weather(query: str) -> str:

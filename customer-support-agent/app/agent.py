@@ -15,7 +15,6 @@
 import os
 from typing import Any
 
-import google.auth
 from google.adk.agents import LlmAgent
 from google.adk.apps import App
 from google.adk.events.event import Event
@@ -25,8 +24,9 @@ from google.genai import types
 
 # Setup Google Cloud / Gemini authentication
 try:
-    _, project_id = google.auth.default()
-    os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
+    # _, project_id = google.auth.default()
+    # os.environ["GOOGLE_CLOUD_PROJECT"] = project_id || "kaggle-5-day-ai-agents-500802"
+    os.environ["GOOGLE_CLOUD_PROJECT"] = "kaggle-5-day-ai-agents-500802"
     os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
 except Exception:
     pass
