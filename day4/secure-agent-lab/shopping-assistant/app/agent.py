@@ -43,12 +43,14 @@ def get_weather(query: str) -> str:
         return "It's 60 degrees and foggy."
     return "It's 90 degrees and sunny."
 
+
 # Discount redemption tool
 # In-memory store of single-use discount codes
 _discount_store = {
     "WELCOME50": {"value": "50% off", "redeemed": False},
     "SUMMER20": {"value": "20% off", "redeemed": False},
 }
+
 
 def redeem_discount(code: str, user_id: str) -> str:
     """Redeem a single-use discount code for a user.
