@@ -58,9 +58,27 @@ def classify_query(node_input: Any) -> Event:
 
     text_lower = user_text.lower()
     shipping_keywords = [
-        "ship", "track", "deliver", "return", "rate", "package", "parcel",
-        "freight", "carrier", "post", "address", "label", "customs", "pickup",
-        "weight", "box", "transit", "lost", "damaged", "refund", "exchange"
+        "ship",
+        "track",
+        "deliver",
+        "return",
+        "rate",
+        "package",
+        "parcel",
+        "freight",
+        "carrier",
+        "post",
+        "address",
+        "label",
+        "customs",
+        "pickup",
+        "weight",
+        "box",
+        "transit",
+        "lost",
+        "damaged",
+        "refund",
+        "exchange",
     ]
 
     if any(keyword in text_lower for keyword in shipping_keywords):

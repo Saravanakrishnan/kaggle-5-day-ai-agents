@@ -8,7 +8,7 @@ human‑in‑the‑loop decision, and finally records the outcome.
 import json
 import base64
 from typing import Dict, Any
-
+import re
 from google.adk.workflow import Graph, FunctionNode, Edge, RequestInput
 from google.adk import Agent
 from google.adk.tools import llm
@@ -44,7 +44,41 @@ def parse_event(event: str) -> Dict[str, Any]:
         if k not in expense:
             raise KeyError(f"Missing required expense field: {k}")
     return expense
+def security_check(expense: Dict[str, Any]) -> Dict[str, Any]:
+    """Redact PII and detect prompt‑injection.
 
+    • SSNs (###‑##‑####) → "[REDACTED_SSN]"
+    • Credit‑card numbers (13‑16 digits, spaces/dashes) → "[REDACTED_CC]"
+    • Injection keywords (auto approve, bypass, ignore rules, …) set
+      ``_injection_detected = True`` and route straight to human review.
+
+    The function mutates ``expense`` in‑place, adds two metadata keys:
+        ``_redacted_categories`` – list of redacted types
+        ``_injection_detected``   – bool flag used downstream
+    """
+    description: str = expense.get("description", "")
+    redacted: list[str] = []
+
+    # SSN patterns
+    ssn_regex = re.compile(r"\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b")
+    if ssn_regex.search(description):
+        description = ssn_regex.sub("[REDACTED_SSN]", description)
+        redacted.append("ssn")
+
+    # Credit‑card patterns (13‑16 digits, ignore spaces/dashes)
+    cc_regex = re.compile(r"\b(?:\d[ -]*?){13,16}\b")
+    if cc_regex.search(description):
+        description = cc_regex.sub("[REDACTED_CC]", description)
+        redacted.append("credit_card")
+
+    # Simple injection‑keyword heuristic
+    injection_keywords = ["auto approve", "bypass", "ignore rules", "override", "approve instantly"]
+    injection_detected = any(kw.lower() in description.lower() for kw in injection_keywords)
+
+    expense["description"] = description
+    expense["_redacted_categories"] = redacted
+    expense["_injection_detected"] = injection_detected
+    return expense
 def auto_approve(expense: Dict[str, Any]) -> Dict[str, Any]:
     """Auto‑approve path for expenses below the threshold.
 
@@ -104,7 +138,11 @@ node_record = FunctionNode(func=record_outcome, name="record_outcome")
 for n in [node_parse, node_decide, node_auto, node_llm, node_human, node_record]:
     graph.add_node(n)
 
-graph.add_edge(Edge(source=node_parse, target=node_decide))
+graph.add_edge(Edge(source=node_parse, target=node_security))
+# After security, branch based on injection flag
+graph.add_edge(Edge(source=node_security, target=node_human, condition=lambda exp: exp.get('_injection_detected', False)))
+# Clean payload proceeds to normal decision path
+graph.add_edge(Edge(source=node_security, target=node_decide, condition=lambda exp: not exp.get('_injection_detected', False)))
 graph.add_edge(Edge(source=node_decide, target=node_auto, condition=lambda out: out == "auto"))
 graph.add_edge(Edge(source=node_decide, target=node_llm, condition=lambda out: out == "review"))
 graph.add_edge(Edge(source=node_llm, target=node_human))

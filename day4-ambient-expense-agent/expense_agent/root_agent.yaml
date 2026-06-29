@@ -1,0 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/google/adk-python/refs/heads/main/src/google/adk/agents/config_schemas/AgentConfig.json
+name: expense_approval_agent
+model: gemini-3.1-flash-lite
+instruction: |\n  Process expense reports, auto‑approve under $100, otherwise run risk LLM and wait for human approval.\ngraph: expense_agent.workflow:graph
