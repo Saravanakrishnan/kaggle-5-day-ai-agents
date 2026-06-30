@@ -1,0 +1,7 @@
+rules:
+  - id: hardcoded-google-api-key
+    patterns:
+      - pattern-regex: "AIzaSy[A-Za-z0-9_\\-]*"
+    message: "Hardcoded Google API key detected. Remove or externalize secrets."
+    languages: [python]
+    severity: ERROR
